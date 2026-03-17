@@ -1,0 +1,31 @@
+info:
+  name: Post User
+  type: http
+  seq: 1
+
+http:
+  method: POST
+  url: http://localhost:3000/user
+  headers:
+    - name: Content-Type
+      value: application/json
+  params:
+    - name: ""
+      value: ""
+      type: query
+  body:
+    type: json
+    data: |-
+      {
+        "name": "Renan",
+        "email": "renancavichi@gmail.com",
+        "pass": "123123",
+        "avatar": "https://github.com/renancavichi.png"
+      }
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
