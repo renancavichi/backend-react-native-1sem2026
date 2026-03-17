@@ -10,9 +10,18 @@ app.use(cors())
 
 app.post('/user', async (req, res) => {
   const user = req.body
-  const result = await prisma.user.create({
-    data: user
-  })
+  
+  let result
+
+  try {
+    result = await prisma.user.create({
+      data: user
+    })
+  } catch (error) {
+      console.error('Error creating user:', error)
+      return res.status(500).json({message: 'Erro ao criar usuário, verifique os dados enviados.'})
+  }
+  
   if (!result)
     return res.status(400).json({message: 'Erro ao criar usuário'})
   
