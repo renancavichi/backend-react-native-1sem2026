@@ -41,6 +41,40 @@ app.get('/user', async (req, res) => {
   return res.json({users: result})
 })
 
+app.delete('/user/:id', async (req, res) => {
+  const { id } = req.params
+  let result
+
+  try {
+    result = await prisma.user.delete({
+      where: { id: parseInt(id) }
+    })
+  } catch (error) {
+    console.error('Error deleting user:', error)
+    return res.status(500).json({message: 'Erro ao deletar usuário'})
+  }
+
+  return res.json({message: 'Usuário deletado com sucesso', user: result})
+})
+
+app.put('/user/:id', async (req, res) => {
+  const { id } = req.params
+  const user = req.body
+  let result
+
+  try {
+    result = await prisma.user.update({
+      where: { id: +id },
+      data: user
+    })
+  } catch (error) {
+    console.error('Error updating user:', error)
+    return res.status(500).json({message: 'Erro ao atualizar usuário'})
+  }
+
+  return res.json({message: 'Usuário atualizado com sucesso', user: result})
+})
+
 app.listen(PORT, () => {
   console.log(`Server is running http://localhost:${PORT}`)
 })
