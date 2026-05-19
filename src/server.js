@@ -1,6 +1,10 @@
 import express from 'express'
 import cors from 'cors'
+import bcrypt from 'bcryptjs'
+import jwt from 'jsonwebtoken'
 import { prisma } from './helper/prismaClient.js'
+
+const JWT_SECRET = process.env.JWT_SECRET
 
 const app = express()
 const PORT = 3333
@@ -8,14 +12,32 @@ const PORT = 3333
 app.use(express.json())
 app.use(cors())
 
+const authMiddleware = (req, res, next) => {
+  const authHeader = req.headers['authorization']
+  const token = authHeader && authHeader.split(' ')[1]
+
+  if (!token)
+    return res.status(401).json({ message: 'Token não fornecido' })
+
+  try {
+    const decoded = jwt.verify(token, JWT_SECRET)
+    req.userId = decoded.id
+    next()
+  } catch {
+    return res.status(401).json({ message: 'Token inválido ou expirado' })
+  }
+}
+
 app.post('/user', async (req, res) => {
-  const user = req.body
-  
+  const { pass, ...rest } = req.body
+
+  const hashedPass = await bcrypt.hash(pass, 10)
+
   let result
 
   try {
     result = await prisma.user.create({
-      data: user
+      data: { ...rest, pass: hashedPass }
     })
   } catch (error) {
       console.error('Error creating user:', error)
@@ -27,6 +49,58 @@ app.post('/user', async (req, res) => {
   
   return res.json({message: 'Usuário criado com sucesso', user: result})
 })
+
+app.post('/login', async (req, res) => {
+  const { email, pass } = req.body
+
+  let user
+
+  try {
+    user = await prisma.user.findUnique({ where: { email } })
+  } catch (error) {
+    console.error('Error finding user:', error)
+    return res.status(500).json({ message: 'Erro ao realizar login' })
+  }
+
+  if (!user)
+    return res.status(401).json({ message: 'E-mail ou senha inválidos' })
+
+  const passwordMatch = await bcrypt.compare(pass, user.pass)
+
+  if (!passwordMatch)
+    return res.status(401).json({ message: 'E-mail ou senha inválidos' })
+
+  const token = jwt.sign({ id: user.id }, JWT_SECRET, { expiresIn: '1d' })
+
+  const { pass: _, ...userWithoutPass } = user
+
+  return res.json({ user: userWithoutPass, token })
+})
+
+
+app.get('/user/:id', authMiddleware, async (req, res) => {
+  const { id } = req.params
+
+  if (req.userId !== parseInt(id))
+    return res.status(403).json({ message: 'Não autorizado' })
+
+  let user
+
+  try {
+    user = await prisma.user.findUnique({ where: { id: parseInt(id) } })
+  } catch (error) {
+    console.error('Error fetching user:', error)
+    return res.status(500).json({ message: 'Erro ao buscar usuário' })
+  }
+
+  if (!user)
+    return res.status(404).json({ message: 'Usuário não encontrado' })
+
+  const { pass: _, ...userWithoutPass } = user
+
+  return res.json({ user: userWithoutPass })
+})
+
 
 app.get('/user', async (req, res) => {
   let result
