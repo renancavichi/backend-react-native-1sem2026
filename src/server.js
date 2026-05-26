@@ -47,7 +47,8 @@ app.post('/user', async (req, res) => {
   if (!result)
     return res.status(400).json({message: 'Erro ao criar usuário'})
   
-  return res.json({message: 'Usuário criado com sucesso', user: result})
+  const { pass: _, ...userWithoutPass } = result
+  return res.json({message: 'Usuário criado com sucesso', user: userWithoutPass})
 })
 
 app.post('/login', async (req, res) => {
