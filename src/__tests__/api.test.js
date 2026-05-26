@@ -25,6 +25,8 @@ const makeToken = (id) => jwt.sign({ id }, process.env.JWT_SECRET, { expiresIn: 
 const mockUser = { id: 1, name: 'Test User', email: 'test@example.com', pass: 'hashed' }
 const mockUserNoPass = { id: 1, name: 'Test User', email: 'test@example.com' }
 
+beforeAll(() => jest.spyOn(console, 'error').mockImplementation(() => {}))
+afterAll(() => jest.restoreAllMocks())
 afterEach(() => jest.clearAllMocks())
 
 // ---------------------------------------------------------------------------
