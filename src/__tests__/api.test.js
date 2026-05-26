@@ -1,4 +1,5 @@
 import { jest } from '@jest/globals'
+import { createServer } from 'http'
 import request from 'supertest'
 import jwt from 'jsonwebtoken'
 import bcrypt from 'bcryptjs'
@@ -25,6 +26,12 @@ const makeToken = (id) => jwt.sign({ id }, process.env.JWT_SECRET, { expiresIn: 
 const mockUser = { id: 1, name: 'Test User', email: 'test@example.com', pass: 'hashed' }
 const mockUserNoPass = { id: 1, name: 'Test User', email: 'test@example.com' }
 
+let server
+beforeAll(() => {
+  server = createServer(app)
+  server.listen(0)
+})
+afterAll(() => new Promise((resolve) => server.close(resolve)))
 afterEach(() => jest.clearAllMocks())
 
 // ---------------------------------------------------------------------------
@@ -34,7 +41,7 @@ describe('POST /user', () => {
   test('200 – cria usuário com sucesso e omite o campo pass', async () => {
     prisma.user.create.mockResolvedValueOnce(mockUser)
 
-    const res = await request(app)
+    const res = await request(server)
       .post('/user')
       .send({ name: 'Test User', email: 'test@example.com', pass: 'password123' })
 
@@ -47,7 +54,7 @@ describe('POST /user', () => {
   test('500 – erro do banco de dados', async () => {
     prisma.user.create.mockRejectedValueOnce(new Error('DB error'))
 
-    const res = await request(app)
+    const res = await request(server)
       .post('/user')
       .send({ name: 'Test User', email: 'test@example.com', pass: 'password123' })
 
@@ -64,7 +71,7 @@ describe('POST /login', () => {
     const hashedPass = await bcrypt.hash('password123', 1)
     prisma.user.findUnique.mockResolvedValueOnce({ ...mockUser, pass: hashedPass })
 
-    const res = await request(app)
+    const res = await request(server)
       .post('/login')
       .send({ email: 'test@example.com', pass: 'password123' })
 
@@ -77,7 +84,7 @@ describe('POST /login', () => {
   test('401 – e-mail não encontrado', async () => {
     prisma.user.findUnique.mockResolvedValueOnce(null)
 
-    const res = await request(app)
+    const res = await request(server)
       .post('/login')
       .send({ email: 'nope@example.com', pass: 'password123' })
 
@@ -89,7 +96,7 @@ describe('POST /login', () => {
     const hashedPass = await bcrypt.hash('correct-password', 1)
     prisma.user.findUnique.mockResolvedValueOnce({ ...mockUser, pass: hashedPass })
 
-    const res = await request(app)
+    const res = await request(server)
       .post('/login')
       .send({ email: 'test@example.com', pass: 'wrong-password' })
 
@@ -100,7 +107,7 @@ describe('POST /login', () => {
   test('500 – erro do banco de dados', async () => {
     prisma.user.findUnique.mockRejectedValueOnce(new Error('DB error'))
 
-    const res = await request(app)
+    const res = await request(server)
       .post('/login')
       .send({ email: 'test@example.com', pass: 'password123' })
 
@@ -116,7 +123,7 @@ describe('GET /user', () => {
   test('200 – lista usuários com sucesso', async () => {
     prisma.user.findMany.mockResolvedValueOnce([mockUser])
 
-    const res = await request(app).get('/user')
+    const res = await request(server).get('/user')
 
     expect(res.status).toBe(200)
     expect(res.body.users).toEqual([mockUser])
@@ -125,7 +132,7 @@ describe('GET /user', () => {
   test('500 – erro do banco de dados', async () => {
     prisma.user.findMany.mockRejectedValueOnce(new Error('DB error'))
 
-    const res = await request(app).get('/user')
+    const res = await request(server).get('/user')
 
     expect(res.status).toBe(500)
     expect(res.body.message).toBe('Erro ao buscar usuários')
@@ -140,7 +147,7 @@ describe('GET /user/:id', () => {
     prisma.user.findUnique.mockResolvedValueOnce(mockUser)
     const token = makeToken(1)
 
-    const res = await request(app)
+    const res = await request(server)
       .get('/user/1')
       .set('Authorization', `Bearer ${token}`)
 
@@ -150,14 +157,14 @@ describe('GET /user/:id', () => {
   })
 
   test('401 – token não fornecido', async () => {
-    const res = await request(app).get('/user/1')
+    const res = await request(server).get('/user/1')
 
     expect(res.status).toBe(401)
     expect(res.body.message).toBe('Token não fornecido')
   })
 
   test('401 – token inválido', async () => {
-    const res = await request(app)
+    const res = await request(server)
       .get('/user/1')
       .set('Authorization', 'Bearer invalid.token.here')
 
@@ -168,7 +175,7 @@ describe('GET /user/:id', () => {
   test('403 – token de outro usuário', async () => {
     const token = makeToken(99)
 
-    const res = await request(app)
+    const res = await request(server)
       .get('/user/1')
       .set('Authorization', `Bearer ${token}`)
 
@@ -180,7 +187,7 @@ describe('GET /user/:id', () => {
     prisma.user.findUnique.mockResolvedValueOnce(null)
     const token = makeToken(1)
 
-    const res = await request(app)
+    const res = await request(server)
       .get('/user/1')
       .set('Authorization', `Bearer ${token}`)
 
@@ -192,7 +199,7 @@ describe('GET /user/:id', () => {
     prisma.user.findUnique.mockRejectedValueOnce(new Error('DB error'))
     const token = makeToken(1)
 
-    const res = await request(app)
+    const res = await request(server)
       .get('/user/1')
       .set('Authorization', `Bearer ${token}`)
 
@@ -209,7 +216,7 @@ describe('PUT /user/:id', () => {
     const updated = { ...mockUser, name: 'Updated Name' }
     prisma.user.update.mockResolvedValueOnce(updated)
 
-    const res = await request(app)
+    const res = await request(server)
       .put('/user/1')
       .send({ name: 'Updated Name' })
 
@@ -221,7 +228,7 @@ describe('PUT /user/:id', () => {
   test('500 – erro do banco de dados', async () => {
     prisma.user.update.mockRejectedValueOnce(new Error('DB error'))
 
-    const res = await request(app)
+    const res = await request(server)
       .put('/user/1')
       .send({ name: 'Updated Name' })
 
@@ -237,7 +244,7 @@ describe('DELETE /user/:id', () => {
   test('200 – remove usuário com sucesso', async () => {
     prisma.user.delete.mockResolvedValueOnce(mockUser)
 
-    const res = await request(app).delete('/user/1')
+    const res = await request(server).delete('/user/1')
 
     expect(res.status).toBe(200)
     expect(res.body.message).toBe('Usuário deletado com sucesso')
@@ -247,7 +254,7 @@ describe('DELETE /user/:id', () => {
   test('500 – erro do banco de dados', async () => {
     prisma.user.delete.mockRejectedValueOnce(new Error('DB error'))
 
-    const res = await request(app).delete('/user/1')
+    const res = await request(server).delete('/user/1')
 
     expect(res.status).toBe(500)
     expect(res.body.message).toBe('Erro ao deletar usuário')
