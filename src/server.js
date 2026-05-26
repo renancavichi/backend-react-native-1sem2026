@@ -150,6 +150,13 @@ app.put('/user/:id', async (req, res) => {
   return res.json({message: 'Usuário atualizado com sucesso', user: result})
 })
 
-app.listen(PORT, () => {
-  console.log(`Server is running http://localhost:${PORT}`)
-})
+import { fileURLToPath } from 'url'
+
+const isMain = process.argv[1] === fileURLToPath(import.meta.url)
+if (isMain) {
+  app.listen(PORT, () => {
+    console.log(`Server is running http://localhost:${PORT}`)
+  })
+}
+
+export { app }
