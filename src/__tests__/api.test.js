@@ -30,8 +30,12 @@ let server
 beforeAll(() => {
   server = createServer(app)
   server.listen(0)
+  jest.spyOn(console, 'error').mockImplementation(() => {})
 })
-afterAll(() => new Promise((resolve) => server.close(resolve)))
+afterAll(() => {
+  new Promise((resolve) => server.close(resolve))
+  jest.restoreAllMocks()
+})
 afterEach(() => jest.clearAllMocks())
 
 // ---------------------------------------------------------------------------
